@@ -13,19 +13,16 @@ import (
 	"time"
 
 	"github.com/randisun05/Hallo_Say/internal/agent"
-	"github.com/randisun05/Hallo_Say/internal/claude"
+	"github.com/randisun05/Hallo_Say/internal/google"
+	"github.com/randisun05/Hallo_Say/internal/llm"
+	"github.com/randisun05/Hallo_Say/internal/llm/claude"
+	"github.com/randisun05/Hallo_Say/internal/llm/gemini"
 	"github.com/randisun05/Hallo_Say/internal/reminder"
 	"github.com/randisun05/Hallo_Say/internal/telegram"
 )
 
 func main() {
 	telegramToken := requireEnv("TELEGRAM_BOT_TOKEN")
-	anthropicKey := requireEnv("ANTHROPIC_API_KEY")
-
-	model := os.Getenv("CLAUDE_MODEL")
-	if model == "" {
-		model = "claude-sonnet-5"
-	}
 
 	dataDir := os.Getenv("DATA_DIR")
 	if dataDir == "" {
@@ -44,7 +41,8 @@ func main() {
 		log.Fatalf("gagal inisialisasi reminder store: %v", err)
 	}
 
-	claudeClient := claude.NewClient(anthropicKey)
+	provider := buildProvider()
+	googleClient := buildGoogleClient(dataDir)
 
 	notifier := func(chatID int64, text string) {
 		if err := tgClient.SendMessage(chatID, text); err != nil {
@@ -52,7 +50,7 @@ func main() {
 		}
 	}
 
-	ag := agent.New(claudeClient, model, store, notifier)
+	ag := agent.New(provider, store, googleClient, notifier)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -110,6 +108,58 @@ func handleMessage(ctx context.Context, tgClient *telegram.Client, ag *agent.Age
 	if err := tgClient.SendMessage(chatID, reply); err != nil {
 		log.Printf("gagal kirim balasan ke chat %d: %v", chatID, err)
 	}
+}
+
+func buildProvider() llm.Provider {
+	name := os.Getenv("LLM_PROVIDER")
+	if name == "" {
+		name = "gemini"
+	}
+
+	switch name {
+	case "gemini":
+		apiKey := requireEnv("GEMINI_API_KEY")
+		model := os.Getenv("GEMINI_MODEL")
+		if model == "" {
+			model = "gemini-2.5-flash"
+		}
+		log.Printf("LLM provider: gemini (%s)", model)
+		return gemini.NewClient(apiKey, model)
+
+	case "anthropic":
+		apiKey := requireEnv("ANTHROPIC_API_KEY")
+		model := os.Getenv("CLAUDE_MODEL")
+		if model == "" {
+			model = "claude-sonnet-5"
+		}
+		log.Printf("LLM provider: anthropic (%s)", model)
+		return claude.NewClient(apiKey, model)
+
+	default:
+		log.Fatalf("LLM_PROVIDER tidak dikenal: %q (pakai \"gemini\" atau \"anthropic\")", name)
+		return nil
+	}
+}
+
+// buildGoogleClient wires up Calendar/Drive/Gmail tools if a token from
+// `go run ./cmd/oauth-setup` is present. Returns nil (feature disabled) if
+// not configured, rather than failing startup.
+func buildGoogleClient(dataDir string) *google.Client {
+	clientID := os.Getenv("GOOGLE_CLIENT_ID")
+	clientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
+	if clientID == "" || clientSecret == "" {
+		log.Println("GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET tidak diset — fitur Calendar/Drive/Gmail dimatikan.")
+		return nil
+	}
+
+	tokenPath := filepath.Join(dataDir, "google-token.json")
+	client, err := google.NewClient(google.Config{ClientID: clientID, ClientSecret: clientSecret}, tokenPath)
+	if err != nil {
+		log.Printf("Google client tidak aktif (%v) — fitur Calendar/Drive/Gmail dimatikan.", err)
+		return nil
+	}
+	log.Println("Integrasi Google Calendar/Drive/Gmail aktif.")
+	return client
 }
 
 func requireEnv(key string) string {
