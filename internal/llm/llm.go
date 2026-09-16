@@ -5,6 +5,8 @@ package llm
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
 )
 
 const (
@@ -61,7 +63,23 @@ type Response struct {
 	StopReason StopReason
 }
 
-// Provider is implemented by each backend (Claude, Gemini, ...).
+// Provider is implemented by each backend (Claude, Gemini, Ollama, ...).
 type Provider interface {
 	SendMessage(ctx context.Context, system string, messages []Message, tools []Tool, maxTokens int) (*Response, error)
+}
+
+// NewToolUseID and ToolNameFromID help providers (Gemini, Ollama, ...) that
+// don't hand back a real call ID for function/tool calls: we encode the
+// tool name into a synthetic ID so the agent's tool_use/tool_result
+// bookkeeping still works, then recover the name when building the
+// provider-specific tool-result payload.
+func NewToolUseID(name string, index int) string {
+	return fmt.Sprintf("%s#%d", name, index)
+}
+
+func ToolNameFromID(id string) string {
+	if i := strings.LastIndex(id, "#"); i >= 0 {
+		return id[:i]
+	}
+	return id
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/randisun05/Hallo_Say/internal/llm"
 	"github.com/randisun05/Hallo_Say/internal/llm/claude"
 	"github.com/randisun05/Hallo_Say/internal/llm/gemini"
+	"github.com/randisun05/Hallo_Say/internal/llm/ollama"
 	"github.com/randisun05/Hallo_Say/internal/reminder"
 	"github.com/randisun05/Hallo_Say/internal/telegram"
 )
@@ -135,8 +136,17 @@ func buildProvider() llm.Provider {
 		log.Printf("LLM provider: anthropic (%s)", model)
 		return claude.NewClient(apiKey, model)
 
+	case "ollama":
+		baseURL := os.Getenv("OLLAMA_BASE_URL")
+		model := os.Getenv("OLLAMA_MODEL")
+		if model == "" {
+			model = "qwen2.5:7b"
+		}
+		log.Printf("LLM provider: ollama (%s @ %s)", model, baseURL)
+		return ollama.NewClient(baseURL, model)
+
 	default:
-		log.Fatalf("LLM_PROVIDER tidak dikenal: %q (pakai \"gemini\" atau \"anthropic\")", name)
+		log.Fatalf("LLM_PROVIDER tidak dikenal: %q (pakai \"gemini\", \"anthropic\", atau \"ollama\")", name)
 		return nil
 	}
 }

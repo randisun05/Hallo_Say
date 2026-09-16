@@ -16,7 +16,8 @@ tanpa dependency eksternal (hanya standard library).
 - **Gmail** — lihat email terbaru, kirim email (opsional).
 
 LLM yang dipakai bisa Google Gemini (ada free tier bulanan, jadi bisa dites
-tanpa biaya) atau Anthropic Claude, dipilih lewat `LLM_PROVIDER`.
+tanpa biaya), Anthropic Claude, atau Ollama yang di-self-host di VM/komputer
+sendiri (mis. model Qwen2.5) — dipilih lewat `LLM_PROVIDER`.
 
 ## Setup dasar (chat & reminder)
 
@@ -37,6 +38,40 @@ tanpa biaya) atau Anthropic Claude, dipilih lewat `LLM_PROVIDER`.
 
 Ganti `LLM_PROVIDER=anthropic` (plus `ANTHROPIC_API_KEY`) kapan pun kamu mau
 pindah ke Claude — tidak ada perubahan kode yang dibutuhkan.
+
+## Setup Ollama/Qwen self-hosted — opsional
+
+Jalur ini dipakai kalau kamu mau LLM jalan di VM/komputer sendiri (gratis
+tanpa kuota, data tidak keluar ke pihak ketiga), bukan lewat API cloud.
+Cocok untuk VM 8-core/16GB tanpa GPU dengan model **Qwen2.5 7B** — model
+lebih besar (14B+) akan terlalu lambat/berat di RAM segitu.
+
+1. Install Ollama di VM:
+   ```sh
+   curl -fsSL https://ollama.com/install.sh | sh
+   ```
+2. Unduh model Qwen2.5 (sekali saja, ~5GB):
+   ```sh
+   ollama pull qwen2.5:7b
+   ```
+3. Pastikan servernya jalan (`ollama serve`, biasanya otomatis jalan sebagai
+   service setelah install) dan bisa diakses bot — default di
+   `http://localhost:11434`.
+4. Di `.env`, set:
+   ```
+   LLM_PROVIDER=ollama
+   OLLAMA_BASE_URL=http://localhost:11434
+   OLLAMA_MODEL=qwen2.5:7b
+   ```
+5. Jalankan bot seperti biasa (`go run ./cmd/bot`).
+
+Catatan realistis: kualitas jawaban & akurasi tool-calling (reminder,
+Calendar, dll.) Qwen2.5 7B di CPU jelas di bawah Gemini/Claude, dan
+responsnya lebih lambat (beberapa detik–puluhan detik per balasan,
+tergantung berapa kali tool dipanggil). Ini trade-off yang wajar untuk
+dapat privasi penuh + tanpa biaya/kuota. Kalau butuh kualitas lebih baik
+dengan hardware yang sama, coba juga `ollama pull qwen2.5:14b` (lebih berat,
+lebih pintar) atau tetap pakai Gemini untuk kasus yang butuh akurasi tinggi.
 
 ## Setup Google (Calendar/Drive/Gmail) — opsional
 
@@ -84,6 +119,7 @@ internal/telegram/      klien Telegram Bot API (long polling + kirim pesan)
 internal/llm/            tipe & interface provider LLM yang generik
 internal/llm/claude/     implementasi provider untuk Anthropic Claude
 internal/llm/gemini/     implementasi provider untuk Google Gemini
+internal/llm/ollama/     implementasi provider untuk Ollama self-hosted (Qwen, dll.)
 internal/agent/          orkestrasi percakapan + tool loop + system prompt
 internal/reminder/       penyimpanan reminder berbasis file JSON
 internal/webhook/        eksekusi tool call_webhook dengan guard SSRF dasar
@@ -105,7 +141,8 @@ go vet ./...
 go test ./...
 ```
 
-Unit test yang ada mengecek logika inti tanpa perlu API key sungguhan:
+Unit test yang ada mengecek logika inti tanpa perlu API key/server sungguhan:
 penyimpanan reminder, guard `call_webhook` terhadap target jaringan privat,
-dan konversi format tool-calling Gemini. Pengujian end-to-end lewat Telegram
-tetap butuh `TELEGRAM_BOT_TOKEN` dan API key LLM asli.
+dan konversi format tool-calling Gemini maupun Ollama. Pengujian end-to-end
+lewat Telegram tetap butuh `TELEGRAM_BOT_TOKEN` dan LLM asli (API key untuk
+Gemini/Claude, atau server Ollama yang benar-benar jalan).

@@ -106,7 +106,7 @@ func toGeminiContents(messages []llm.Message) []content {
 			case llm.BlockToolUse:
 				parts = append(parts, part{FunctionCall: &functionCall{Name: b.ToolName, Args: b.ToolInput}})
 			case llm.BlockToolResult:
-				name := toolNameFromID(b.ToolResultForID)
+				name := llm.ToolNameFromID(b.ToolResultForID)
 				resp := map[string]interface{}{"result": b.ToolResultText}
 				if b.ToolResultError {
 					resp = map[string]interface{}{"error": b.ToolResultText}
@@ -120,13 +120,6 @@ func toGeminiContents(messages []llm.Message) []content {
 		out = append(out, content{Role: role, Parts: parts})
 	}
 	return out
-}
-
-func toolNameFromID(id string) string {
-	if i := strings.LastIndex(id, "#"); i >= 0 {
-		return id[:i]
-	}
-	return id
 }
 
 func toGeminiTools(tools []llm.Tool) []toolDecl {
@@ -194,7 +187,7 @@ func fromGeminiParts(parts []part) []llm.ContentBlock {
 		case p.Text != "":
 			out = append(out, llm.ContentBlock{Type: llm.BlockText, Text: p.Text})
 		case p.FunctionCall != nil:
-			id := fmt.Sprintf("%s#%d", p.FunctionCall.Name, callIndex)
+			id := llm.NewToolUseID(p.FunctionCall.Name, callIndex)
 			callIndex++
 			out = append(out, llm.ContentBlock{
 				Type:      llm.BlockToolUse,
