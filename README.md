@@ -67,7 +67,15 @@ lebih besar (14B+) akan terlalu lambat/berat di RAM segitu.
    OLLAMA_BASE_URL=http://localhost:11434
    OLLAMA_MODEL=qwen2.5:7b
    ```
-5. Jalankan bot seperti biasa (`go run ./cmd/bot`).
+5. Tes LLM-nya dulu tanpa perlu bot Telegram, lewat mode chat terminal:
+   ```sh
+   export $(grep -v '^#' .env | xargs)
+   go run ./cmd/chat
+   ```
+   Ini langsung ngobrol ke provider yang dikonfigurasi (Ollama/Gemini/Claude)
+   dari terminal — cocok untuk validasi model & tool-calling (reminder,
+   dll.) sebelum kamu punya token bot Telegram.
+6. Kalau sudah oke, jalankan bot Telegram sungguhan (`go run ./cmd/bot`).
 
 Catatan realistis: kualitas jawaban & akurasi tool-calling (reminder,
 Calendar, dll.) Qwen2.5 7B di CPU jelas di bawah Gemini/Claude, dan
@@ -118,7 +126,9 @@ dengan fitur Google dinonaktifkan.
 
 ```
 cmd/bot/               entry point: polling Telegram, wiring semua komponen
+cmd/chat/               mode chat terminal untuk tes LLM tanpa Telegram
 cmd/oauth-setup/        setup interaktif sekali-jalan untuk otorisasi Google
+internal/appsetup/       wiring provider LLM + Google client dari env, dipakai cmd/bot & cmd/chat
 internal/telegram/      klien Telegram Bot API (long polling + kirim pesan)
 internal/llm/            tipe & interface provider LLM yang generik
 internal/llm/claude/     implementasi provider untuk Anthropic Claude
