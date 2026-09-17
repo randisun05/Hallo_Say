@@ -39,10 +39,14 @@ sendiri (mis. model Qwen2.5) — dipilih lewat `LLM_PROVIDER`.
 Ganti `LLM_PROVIDER=anthropic` (plus `ANTHROPIC_API_KEY`) kapan pun kamu mau
 pindah ke Claude — tidak ada perubahan kode yang dibutuhkan.
 
-## Setup Ollama/Qwen self-hosted — opsional
+## Setup Ollama/Qwen self-hosted — jalur aktif saat ini
 
-Jalur ini dipakai kalau kamu mau LLM jalan di VM/komputer sendiri (gratis
-tanpa kuota, data tidak keluar ke pihak ketiga), bukan lewat API cloud.
+`.env.example` sudah di-set `LLM_PROVIDER=ollama` dengan `OLLAMA_BASE_URL`
+dikosongkan — isi begitu VM-nya siap (`http://<ip-vm>:11434`), sisanya
+tidak perlu diubah. Jalur ini dipakai kalau kamu mau LLM jalan di
+VM/komputer sendiri (gratis tanpa kuota, data tidak keluar ke pihak
+ketiga), bukan lewat API cloud.
+
 Cocok untuk VM 8-core/16GB tanpa GPU dengan model **Qwen2.5 7B** — model
 lebih besar (14B+) akan terlalu lambat/berat di RAM segitu.
 
