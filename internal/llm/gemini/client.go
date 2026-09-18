@@ -36,6 +36,7 @@ type part struct {
 	Text             string            `json:"text,omitempty"`
 	FunctionCall     *functionCall     `json:"functionCall,omitempty"`
 	FunctionResponse *functionResponse `json:"functionResponse,omitempty"`
+	ThoughtSignature string            `json:"thoughtSignature,omitempty"`
 }
 
 type functionCall struct {
@@ -101,10 +102,13 @@ func toGeminiContents(messages []llm.Message) []content {
 			switch b.Type {
 			case llm.BlockText:
 				if b.Text != "" {
-					parts = append(parts, part{Text: b.Text})
+					parts = append(parts, part{Text: b.Text, ThoughtSignature: b.ProviderSignature})
 				}
 			case llm.BlockToolUse:
-				parts = append(parts, part{FunctionCall: &functionCall{Name: b.ToolName, Args: b.ToolInput}})
+				parts = append(parts, part{
+					FunctionCall:     &functionCall{Name: b.ToolName, Args: b.ToolInput},
+					ThoughtSignature: b.ProviderSignature,
+				})
 			case llm.BlockToolResult:
 				name := llm.ToolNameFromID(b.ToolResultForID)
 				resp := map[string]interface{}{"result": b.ToolResultText}
@@ -185,15 +189,16 @@ func fromGeminiParts(parts []part) []llm.ContentBlock {
 	for _, p := range parts {
 		switch {
 		case p.Text != "":
-			out = append(out, llm.ContentBlock{Type: llm.BlockText, Text: p.Text})
+			out = append(out, llm.ContentBlock{Type: llm.BlockText, Text: p.Text, ProviderSignature: p.ThoughtSignature})
 		case p.FunctionCall != nil:
 			id := llm.NewToolUseID(p.FunctionCall.Name, callIndex)
 			callIndex++
 			out = append(out, llm.ContentBlock{
-				Type:      llm.BlockToolUse,
-				ToolUseID: id,
-				ToolName:  p.FunctionCall.Name,
-				ToolInput: p.FunctionCall.Args,
+				Type:              llm.BlockToolUse,
+				ToolUseID:         id,
+				ToolName:          p.FunctionCall.Name,
+				ToolInput:         p.FunctionCall.Args,
+				ProviderSignature: p.ThoughtSignature,
 			})
 		}
 	}

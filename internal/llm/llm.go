@@ -37,6 +37,13 @@ type ContentBlock struct {
 	ToolResultForID string
 	ToolResultText  string
 	ToolResultError bool
+
+	// ProviderSignature is opaque per-provider metadata attached to a
+	// model-generated block (e.g. Gemini's "thoughtSignature" on thinking
+	// models) that must be replayed unchanged on the next turn for the
+	// conversation to stay valid. Providers that don't need it leave it
+	// empty; other providers ignore it.
+	ProviderSignature string
 }
 
 type Message struct {

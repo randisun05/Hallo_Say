@@ -34,7 +34,7 @@ func BuildProvider() llm.Provider {
 		apiKey := RequireEnv("GEMINI_API_KEY")
 		model := os.Getenv("GEMINI_MODEL")
 		if model == "" {
-			model = "gemini-2.5-flash"
+			model = "gemini-3.6-flash"
 		}
 		log.Printf("LLM provider: gemini (%s)", model)
 		return gemini.NewClient(apiKey, model)

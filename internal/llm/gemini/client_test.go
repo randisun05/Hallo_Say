@@ -72,3 +72,31 @@ func TestToolUseRoundTrip(t *testing.T) {
 		t.Fatalf("functionResponse.response = %+v", fr.Response)
 	}
 }
+
+func TestThoughtSignatureRoundTrip(t *testing.T) {
+	// Thinking models (e.g. gemini-3.6-flash) reject a follow-up request
+	// if a prior functionCall/text part's thoughtSignature isn't replayed
+	// verbatim, so it must survive the generic llm.ContentBlock round trip.
+	const sig = "opaque-signature-abc"
+	geminiResp := response{
+		Candidates: []candidate{{
+			Content: content{
+				Role: "model",
+				Parts: []part{
+					{FunctionCall: &functionCall{Name: "set_reminder", Args: json.RawMessage(`{}`)}, ThoughtSignature: sig},
+				},
+			},
+		}},
+	}
+
+	blocks := fromGeminiParts(geminiResp.Candidates[0].Content.Parts)
+	if blocks[0].ProviderSignature != sig {
+		t.Fatalf("ProviderSignature = %q, want %q", blocks[0].ProviderSignature, sig)
+	}
+
+	messages := []llm.Message{{Role: llm.RoleAssistant, Content: blocks}}
+	contents := toGeminiContents(messages)
+	if contents[0].Parts[0].ThoughtSignature != sig {
+		t.Fatalf("replayed thoughtSignature = %q, want %q", contents[0].Parts[0].ThoughtSignature, sig)
+	}
+}
